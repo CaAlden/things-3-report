@@ -1,4 +1,5 @@
 import things
+import re
 import random
 import sys
 
@@ -10,7 +11,6 @@ def mine_tags(tags, place):
         return tags
 
     tags.extend(place['tags'])
-
 
 def has_tag(task, tag):
     area = things.areas(uuid=task['area']) if 'area' in task else None
@@ -25,28 +25,56 @@ def has_tag(task, tag):
     mine_tags(tags, project_area)
     return tag in tags
 
-def format_project(project):
-    return project['title']
+def tasks_to_heirarchy(top_level_comment, tasks):
+    heir = {}
+    for task in tasks:
+        task_leaf = (task, {})
+        if 'project' not in task and 'heading' not in task:
+            heir[task['uuid']] = task_leaf
+        elif 'heading' in task:
+            h_uuid = task['heading']
+            head = things.get(h_uuid)
 
-def format_task(task):
-    task_str = f"{task['title']}. {task['notes']}"
-    if 'heading' in task:
-        heading = things.get(task['heading'])
-        task_str = f"{heading['project_title']} > {heading['title']} > {task_str}"
-    elif 'project_title' in task:
-        task_str = f"{task['project_title']} > {task_str}"
+            p_uuid = head['project'] # This must exist
+            proj = things.get(p_uuid)
+            proj_title, proj_sublevel = heir[p_uuid] if p_uuid in heir else (proj, {})
+            head_title, head_sublevel = proj_sublevel[h_uuid] if h_uuid in proj_sublevel else (head, {})
+            head_sublevel[task['uuid']] = task_leaf
+            proj_sublevel[head['uuid']] = (head_title, head_sublevel)
+            heir[p_uuid] = (proj_title, proj_sublevel)
+        else: # The project must not be None here
+            p_uuid = task['project']
+            proj = things.get(p_uuid)
+            proj_title, proj_sublevel = heir[p_uuid] if p_uuid in heir else (proj, {})
+            proj_sublevel[task['uuid']] = task_leaf
+            heir[p_uuid] = (proj_title, proj_sublevel)
 
-    return task_str.strip()
+    return (top_level_comment, heir)
+
+reportable = list(filter(lambda t: has_tag(t, target_tag), things.today()))
+
+top_level_comment = ' '.join(map(lambda e: f':{e}:', random.choices(EMOJIS, k=3)))
+structured_tasks = tasks_to_heirarchy({ 'title': top_level_comment, 'notes': '' }, reportable)
+
+def parse_note(note):
+    note_block_pattern = r"```report\n([\s\S]*?)\n?```"
+    return ' '.join(re.findall(note_block_pattern, note))
+
+def recursive_format(structure, depth):
+    (node, branches) = structure
+    notes = parse_note(node['notes'])
+    node_str = f"{node['title']}{'' if notes == '' else f'. {notes}'}"
+    if len(branches) == 1:
+        item = list(branches.values())[0]
+        node_str += f" > {recursive_format(item, depth)}"
+    elif len(branches) > 1:
+        new_depth = depth + 2
+        space = ''.join([' '] * new_depth)
+        bullets = [f"{space}- {recursive_format(item, new_depth)}" for item in branches.values()]
+        node_str += ''.join(map(lambda b: f'\n{b}', bullets))
+
+    return node_str
 
 
-reportable = filter(lambda t: has_tag(t, target_tag), things.today())
-
-output = [' '.join(map(lambda e: f':{e}:', random.choices(EMOJIS, k=3))), ''] # TODO: Three random emojis?
-
-for reported in reportable:
-    if reported['type'] == 'project':
-        output.append(f'- {format_project(reported)}')
-    else:
-        output.append(f'- {format_task(reported)}')
-
-print('\n'.join(output))
+print(recursive_format(structured_tasks, 0))
+#print('\n'.join(output))
