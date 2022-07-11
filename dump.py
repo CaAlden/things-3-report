@@ -73,7 +73,7 @@ def make_recursive_formatter(formatter):
 
 class TodayFormatter:
     def node(self, node, notes):
-        return f"{node['title']}{'' if notes == '' else f'. {notes}'}"
+        return f"{node['title']}{'' if notes == '' else f' {notes}'}"
 
     def single(self, subtext):
         return f" > {subtext}"
@@ -84,7 +84,7 @@ class TodayFormatter:
 
 class LogbookFormatter:
     def node(self, node, notes):
-        node_text = f"{node['title']}{'' if notes == '' or node['status'] == 'canceled' else f'. {notes}'}"
+        node_text = f"{node['title']}{'' if notes == '' or node['status'] == 'canceled' else f' {notes}'}"
         if node['status'] == 'completed':
             node_text = f":white_check_mark: {node_text}"
         elif node['status'] == 'canceled':
