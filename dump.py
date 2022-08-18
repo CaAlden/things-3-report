@@ -85,9 +85,7 @@ class TodayFormatter:
 class LogbookFormatter:
     def node(self, node, notes):
         node_text = f"{node['title']}{'' if notes == '' or node['status'] == 'canceled' else f' {notes}'}"
-        if node['status'] == 'completed':
-            node_text = f":white_check_mark: {node_text}"
-        elif node['status'] == 'canceled':
+        if node['status'] == 'canceled':
             node_text = f"~{node_text}~"
 
         return node_text
