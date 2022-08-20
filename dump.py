@@ -102,7 +102,7 @@ def generate_signoff_message(target_tag):
     format_tasks = make_recursive_formatter(LogbookFormatter())
     import datetime
     today_str = str(datetime.datetime.today()).split()[0]
-    reportable = list(filter(lambda t: has_tag(t, target_tag) and t['stop_date'] == today_str, things.logbook()))
+    reportable = list(filter(lambda t: has_tag(t, target_tag) and t['stop_date'] == today_str and t['status'] == 'completed', things.logbook()))
     structured_tasks = tasks_to_heirarchy({ 'title': 'Stopping now', 'notes': '', 'status': '' }, reportable)
     return format_tasks(structured_tasks, 0)
 
