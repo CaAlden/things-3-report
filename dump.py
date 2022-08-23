@@ -98,18 +98,54 @@ class LogbookFormatter:
         space = ''.join([' '] * depth)
         return f"{space}- {subtext}"
 
+# Note: the characters on the RHS are all "lookalikes". The do not == the left side
+VOWEL_MAP = {
+    'a': 'а',
+    'e': 'e',
+    'i': 'і',
+    'o': 'о',
+    'u': 'ս',
+}
+
+def sanitize_name(name):
+    for normal_ch, special_ch in VOWEL_MAP.items():
+        name = name.replace(normal_ch, special_ch)
+
+    return name
+
+def sanitize_string(s, mapping):
+    for original_str, new_str in mapping.items():
+        s = s.replace(original_str, new_str)
+
+    return s
+
+def sanitize_mentions(task):
+    if 'tags' not in task:
+        return
+
+    people_tags = { t[1:]: sanitize_name(t[1:]) for t in task['tags'] if t[0] == '@' }
+    # For now just sanitize title and notes (headings might also make sense?)
+    task['title'] = sanitize_string(task['title'], people_tags)
+    task['notes'] = sanitize_string(task['notes'], people_tags)
 
 def generate_signoff_message(target_tag):
     format_tasks = make_recursive_formatter(LogbookFormatter())
     import datetime
     today_str = str(datetime.datetime.today()).split()[0]
     reportable = list(filter(lambda t: has_tag(t, target_tag) and t['stop_date'] == today_str and t['status'] == 'completed', things.logbook()))
+
+    for task in reportable:
+        sanitize_mentions(task)
+
     structured_tasks = tasks_to_heirarchy({ 'title': 'Stopping now', 'notes': '', 'status': '' }, reportable)
     return format_tasks(structured_tasks, 0)
 
 def generate_today_message(target_tag):
     format_tasks = make_recursive_formatter(TodayFormatter())
     reportable = list(filter(lambda t: has_tag(t, target_tag), things.today()))
+
+    for task in reportable:
+        sanitize_mentions(task)
 
     top_level_comment = ' '.join(map(lambda e: f':{e}:', random.choices(EMOJIS, k=3)))
     structured_tasks = tasks_to_heirarchy({ 'title': top_level_comment, 'notes': '' }, reportable)
