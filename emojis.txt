@@ -3,7 +3,6 @@ ayaya
 blobcat_cookie
 boat-cat
 bouquet_owl
-bubbles-cat
 cat-confused
 cat-cook
 cat-on-the-laptop
