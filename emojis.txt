@@ -39,8 +39,10 @@ eve-owl-evil
 fakeowl
 gatocat
 grumpycat
+gull_scream
 heart-eyes-dog
 hungry_cat
+i_regret_nothing
 investigate-owl
 jakethedog1
 jakethedog2
@@ -104,7 +106,6 @@ meow_mac
 meow_melt
 meow_mustache
 meow_nix
-meow_noplease
 meow_nyan
 meow_party
 meow_pizza
