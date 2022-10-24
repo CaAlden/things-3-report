@@ -157,7 +157,6 @@ super_cat
 surprise-owl
 surprised-cat
 take-my-money-owl
-the-very-hungry-caterpillar
 tonakaiowl
 tycat
 vacationing
