@@ -6,7 +6,7 @@ stdenv.mkDerivation {
 
   buildInputs = [
     pip
-    python3
+    python310
     virtualenv
   ];
 
