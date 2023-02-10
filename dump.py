@@ -2,7 +2,7 @@ import things
 import argparse
 import re
 import random
-import sys
+from datetime import datetime
 
 with open('./emojis.txt', 'r') as emoji_file:
     EMOJIS = [l.strip() for l in emoji_file.readlines()]
@@ -140,11 +140,14 @@ def generate_signoff_message(target_tag):
     structured_tasks = tasks_to_heirarchy({ 'title': 'Stopping now', 'notes': '', 'status': '' }, reportable)
     return format_tasks(structured_tasks, 0)
 
+def by_modified_timestamp(val):
+    return datetime.fromisoformat(val['modified'])
+
 def generate_today_message(target_tag):
     format_tasks = make_recursive_formatter(TodayFormatter())
     reportable = list(filter(lambda t: has_tag(t, target_tag), things.today()))
 
-    for task in reportable:
+    for task in sorted(reportable, key=by_modified_timestamp):
         sanitize_mentions(task)
 
     top_level_comment = ' '.join(map(lambda e: f':{e}:', random.choices(EMOJIS, k=3)))
