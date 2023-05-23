@@ -128,11 +128,16 @@ def sanitize_mentions(task):
     task['title'] = sanitize_string(task['title'], people_tags)
     task['notes'] = sanitize_string(task['notes'], people_tags)
 
+def same_date(d1, d2):
+    day1 = str(d1).split()[0]
+    day2 = str(d2).split()[0]
+    return day1 == day2
+
 def generate_signoff_message(target_tag):
     format_tasks = make_recursive_formatter(LogbookFormatter())
     import datetime
-    today_str = str(datetime.datetime.today()).split()[0]
-    reportable = list(filter(lambda t: has_tag(t, target_tag) and t['stop_date'] == today_str and t['status'] == 'completed', things.logbook()))
+    today = datetime.datetime.today()
+    reportable = list(filter(lambda t: has_tag(t, target_tag) and same_date(today, t['stop_date']) and t['status'] == 'completed', things.logbook()))
 
     for task in reportable:
         sanitize_mentions(task)
