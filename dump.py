@@ -2,7 +2,7 @@ import things
 import argparse
 import re
 import random
-from datetime import datetime
+from datetime import datetime, timedelta
 
 with open('./emojis.txt', 'r') as emoji_file:
     EMOJIS = [l.strip() for l in emoji_file.readlines()]
@@ -159,15 +159,25 @@ def generate_today_message(target_tag):
     structured_tasks = tasks_to_heirarchy({ 'title': top_level_comment, 'notes': '' }, reportable)
     return format_tasks(structured_tasks, 0)
 
+def generate_track_message(target_tag):
+    t = datetime.today() - timedelta(days=14)
+    projects = filter(lambda x: x['type'] == 'project', things.logbook())
+    recent_projects = filter(lambda x: datetime.fromisoformat(x['modified']) > t, projects)
+    selected_projects = filter(lambda x: 'tags' in x and target_tag in x['tags'], recent_projects)
+    return '\n'.join(map(lambda x: x['title'], selected_projects))
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Generate iknow_vacation_remote style messages from Things 3 Tasks")
     parser.add_argument('tags', metavar='TAG', type=str, nargs="+", help="a word in the overall tag")
     parser.add_argument('--signoff', action=argparse.BooleanOptionalAction, help="Get tasks from the logbook and generate output for a signoff message")
+    parser.add_argument('--track', action=argparse.BooleanOptionalAction, help="Get tasks from the logbook and generate output for a track meeting")
     args = parser.parse_args()
     target_tag = ' '.join(args.tags)
 
     if args.signoff:
         print(generate_signoff_message(target_tag))
+    elif args.track:
+        print(generate_track_message(target_tag))
     else:
         print(generate_today_message(target_tag))
 
