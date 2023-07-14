@@ -142,7 +142,7 @@ def generate_signoff_message(target_tag):
     for task in reportable:
         sanitize_mentions(task)
 
-    structured_tasks = tasks_to_heirarchy({ 'title': 'Stopping now', 'notes': '', 'status': '' }, reportable)
+    structured_tasks = tasks_to_heirarchy({ 'title': 'Stopping now', 'notes': '', 'status': '' }, sorted(reportable, key=by_modified_timestamp))
     return format_tasks(structured_tasks, 0)
 
 def by_modified_timestamp(val):
@@ -152,11 +152,11 @@ def generate_today_message(target_tag):
     format_tasks = make_recursive_formatter(TodayFormatter())
     reportable = list(filter(lambda t: has_tag(t, target_tag), things.today()))
 
-    for task in sorted(reportable, key=by_modified_timestamp):
+    for task in reportable:
         sanitize_mentions(task)
 
     top_level_comment = ' '.join(map(lambda e: f':{e}:', random.choices(EMOJIS, k=3)))
-    structured_tasks = tasks_to_heirarchy({ 'title': top_level_comment, 'notes': '' }, reportable)
+    structured_tasks = tasks_to_heirarchy({ 'title': top_level_comment, 'notes': '' }, sorted(reportable, key=by_modified_timestamp))
     return format_tasks(structured_tasks, 0)
 
 def generate_track_message(target_tag):
