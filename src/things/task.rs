@@ -19,6 +19,7 @@ pub enum Status {
 pub struct Project {
     pub id: String,
     pub title: String,
+    pub status: Status,
 }
 
 #[derive(Deserialize, Debug)]

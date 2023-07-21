@@ -15,7 +15,7 @@ today.forEach(todo => {
     notes: todo.notes() || null,
     status: todo.status(),
     completion_date: todo.completionDate(),
-    project: proj && { id: proj.id(), title: proj.name() },
+    project: proj && { id: proj.id(), title: proj.name(), status: proj.status() },
     area: area && { id: area.id(), title: area.name() },
     tags: [...tags, ...todo.tagNames().split(', ')].filter(t => t),
   });
