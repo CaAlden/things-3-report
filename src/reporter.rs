@@ -18,101 +18,71 @@ pub struct AreaTree {
 #[derive(Debug)]
 pub struct ThingsTree {
     areas: Vec<AreaTree>,
+    hanging_projects: Vec<ProjectTree>,
     hanging_tasks: Vec<Task>,
 }
 
-impl ProjectTree {
-    /// Add the task to this project if it belongs here, otherwise pass it back out.
-    pub fn try_take_task(&mut self, mut task: Task) -> Option<Task> {
-        if let Some(proj) = task.project {
-            if proj.id == self.id {
-                task.project = Some(proj);
-                self.tasks.push(task);
-                return None;
-            }
-            task.project = Some(proj);
-            return Some(task);
-        }
-        return Some(task);
-    }
-}
-
 impl AreaTree {
-    pub fn add_new_project_and_task(&mut self, mut task: Task) {
-        if let Some(proj) = task.project {
-            let id = proj.id.clone();
-            let title = proj.title.clone();
-            task.project = Some(proj);
-            self.projects.push(ProjectTree {
-                id,
-                title,
-                tasks: vec![task],
-            });
+    fn new(id: &str, title: &str) -> AreaTree {
+        AreaTree {
+            id: id.clone().to_string(),
+            title: title.clone().to_string(),
+            projects: vec![],
+            hanging_tasks: vec![],
+        }
+    }
+    fn add_task(&mut self, task: Task) {
+        if let Some(project) = &task.project {
+            if let Some(matched_project) = self.projects.iter_mut().find(|p| p.id == project.id) {
+                matched_project.tasks.push(task);
+            } else {
+                self.projects.push(ProjectTree {
+                    id: project.id.clone(),
+                    title: project.title.clone(),
+                    tasks: vec![task],
+                });
+            }
         } else {
             self.hanging_tasks.push(task);
         }
-    }
-    pub fn try_take_task(&mut self, mut task: Task) -> Option<Task> {
-        if let Some(area) = task.area {
-            if area.id == self.id {
-                task.area = Some(area);
-                let mut maybe_task = Some(task);
-                for proj in self.projects.iter_mut() {
-                    if let Some(t) = maybe_task {
-                        maybe_task = proj.try_take_task(t);
-                    }
-                }
-                // Here, the task belongs in this area but there was no project for it.
-                maybe_task.map(|t| self.add_new_project_and_task(t));
-                return None;
-            }
-            task.area = Some(area);
-            return Some(task);
-        }
-        return Some(task);
     }
 }
 
 impl ThingsTree {
     pub fn new() -> ThingsTree {
-        ThingsTree { areas: vec![], hanging_tasks: vec![] }
+        ThingsTree { areas: vec![], hanging_tasks: vec![], hanging_projects: vec![] }
     }
-
-    pub fn add_new_area_and_task(&mut self, mut task: Task) {
-        if let Some(area) = task.area {
-            let id = area.id.clone();
-            let title = area.title.clone();
-            task.area = Some(area);
-            let mut area_tree = AreaTree  {
-                id,
-                title,
-                projects: vec![],
-                hanging_tasks: vec![],
-            };
-            let took = area_tree.try_take_task(task);
-            if took.is_some() {
-                panic!("Area should have matched the task because it was created with the task");
+    pub fn add_task(&mut self, task: Task) {
+        if let Some(area) = &task.area {
+            if let Some(matched_area) = self.areas.iter_mut().find(|a| a.id == area.id) {
+                matched_area.add_task(task);
+            } else {
+                let mut new_area = AreaTree::new(&area.id, &area.title);
+                new_area.add_task(task);
+                self.areas.push(new_area);
             }
-            self.areas.push(area_tree);
         } else {
-            self.hanging_tasks.push(task);
+            if let Some(project) = &task.project {
+                if let Some(matched_project) = self.hanging_projects.iter_mut().find(|p| p.id == project.id) {
+                    matched_project.tasks.push(task);
+                } else {
+                    self.hanging_projects.push(ProjectTree {
+                        id: project.id.clone(),
+                        title: project.title.clone(),
+                        tasks: vec![task],
+                    });
+                }
+            } else {
+                self.hanging_tasks.push(task);
+            }
         }
     }
 
-    pub fn try_take_task(&mut self, task: Task) {
-        let mut maybe_task = Some(task);
-        for area in self.areas.iter_mut() {
-            if let Some(t) = maybe_task {
-                maybe_task = area.try_take_task(t);
-            }
-        }
-        maybe_task.map(|t| self.add_new_area_and_task(t));
-    }
 
     pub fn from_tasks(tasks: Vec<Task>) -> ThingsTree {
         let mut tree = ThingsTree::new();
         for task in tasks.into_iter() {
-            tree.try_take_task(task);
+            tree.add_task(task);
         }
         return tree;
     }
