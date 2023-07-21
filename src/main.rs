@@ -1,5 +1,6 @@
 mod things;
 mod reporter;
+mod emoji;
 
 use reporter::{MarkdownReporter, Reporter};
 
@@ -21,7 +22,7 @@ enum Modes {
 impl Modes {
     fn format_tasks(&self, task_report: &str) -> String {
         match self {
-            Modes::Morning => format!("Starting\n\n{}", task_report),
+            Modes::Morning => format!("{}\n\n{}", emoji::pick(3).join(" "), task_report),
             Modes::Signoff => format!("Stopping now\n\n{}", task_report),
             Modes::Cycle => format!("*Cycle Report*\n\n{}", task_report),
         }
