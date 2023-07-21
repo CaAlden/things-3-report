@@ -2,9 +2,9 @@ mod things;
 mod reporter;
 mod emoji;
 
-use reporter::{MarkdownReporter, Reporter};
+use reporter::{MarkdownReporter, Reporter, Resolution};
 
-use things::task::Task;
+use things::task::{Task, Status};
 use anyhow::Result;
 use clap::{Parser, ValueEnum};
 
@@ -20,11 +20,26 @@ enum Modes {
 }
 
 impl Modes {
-    fn format_tasks(&self, task_report: &str) -> String {
+    fn format_tasks(&self, tasks: Vec<Task>) -> String {
         match self {
-            Modes::Morning => format!("{}\n\n{}", emoji::pick(3).join(" "), task_report),
-            Modes::Signoff => format!("Stopping now\n\n{}", task_report),
-            Modes::Cycle => format!("*Cycle Report*\n\n{}", task_report),
+            Modes::Morning => {
+                let task_report = MarkdownReporter.report(tasks, &Resolution::FullTask);
+                format!("{}\n\n{}", emoji::pick(3).join(" "), task_report)
+            },
+            Modes::Signoff => {
+                let task_report = MarkdownReporter.report(tasks, &Resolution::FullTask);
+                format!("Stopping now\n\n{}", task_report)
+            },
+            Modes::Cycle => {
+                let further_filtered = tasks.into_iter().filter(|t| {
+                    if let Some(p) = &t.project {
+                        return p.status == Status::Completed;
+                    }
+                    return false;
+                }).collect::<Vec<Task>>();
+                let task_report = MarkdownReporter.report(further_filtered, &Resolution::Project);
+                format!("*Cycle Report*\n\n{}", task_report)
+            },
         }
     }
 }
@@ -58,7 +73,7 @@ fn main() -> Result<()> {
     let reported: Vec<Task> = tasks.into_iter().filter(|task| {
         args.tags.iter().all(|tag| task.has_tag(tag))
     }).collect();
-    let report = args.mode.format_tasks(&MarkdownReporter.report(reported));
+    let report = args.mode.format_tasks(reported);
     println!("{report}");
 
     Ok(())

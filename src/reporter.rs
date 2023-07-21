@@ -88,12 +88,17 @@ impl ThingsTree {
     }
 }
 
+pub enum Resolution {
+    FullTask,
+    Project,
+}
+
 pub trait Reporter {
     fn report_task(&mut self, task: &Task, depth: usize) -> String;
-    fn report_project(&mut self, project: &ProjectTree, depth: usize) -> String;
-    fn report_single_area(&mut self, area: &AreaTree) -> String;
-    fn report_multiple_areas(&mut self, areas: &Vec<AreaTree>) -> String;
-    fn report(&mut self, tasks: Vec<Task>) -> String {
+    fn report_project(&mut self, project: &ProjectTree, depth: usize, resolution: &Resolution) -> String;
+    fn report_single_area(&mut self, area: &AreaTree, resolution: &Resolution) -> String;
+    fn report_multiple_areas(&mut self, areas: &Vec<AreaTree>, resolution: &Resolution) -> String;
+    fn report(&mut self, tasks: Vec<Task>, resolution: &Resolution) -> String {
         let tree = ThingsTree::from_tasks(tasks);
         let untracked_tasks = tree.hanging_tasks
             .iter()
@@ -102,8 +107,8 @@ pub trait Reporter {
             .join("\n");
         let area_tasks: String = match tree.areas.len() {
             0 => "".to_string(),
-            1 => self.report_single_area(&tree.areas[0]),
-            _ => self.report_multiple_areas(&tree.areas),
+            1 => self.report_single_area(&tree.areas[0], resolution),
+            _ => self.report_multiple_areas(&tree.areas, resolution),
         };
 
         let separator = if area_tasks == "" || untracked_tasks == "" {
@@ -122,27 +127,41 @@ impl Reporter for MarkdownReporter {
     fn report_task(&mut self, task: &Task, depth: usize) -> String {
         format!("{}- {}", String::from(" ").repeat(depth), task.title)
     }
-    fn report_project(&mut self, project: &ProjectTree, depth: usize) -> String {
-        let tasks = project.tasks.iter().map(|t| self.report_task(t, depth + 4)).collect::<Vec<String>>().join("\n");
-        format!("{}{}\n{}", String::from(" ").repeat(depth), project.title, tasks)
+    fn report_project(&mut self, project: &ProjectTree, depth: usize, resolution: &Resolution) -> String {
+        match resolution {
+            Resolution::FullTask => {
+                let tasks = project.tasks.iter().map(|t| self.report_task(t, depth + 4)).collect::<Vec<String>>().join("\n");
+                format!("{}{}\n{}", String::from(" ").repeat(depth), project.title, tasks)
+            },
+            Resolution::Project => {
+                format!("{}- {}", String::from(" ").repeat(depth), project.title)
+            }
+        }
     }
-    fn report_single_area(&mut self, area: &AreaTree) -> String {
-        let project_tasks = area.projects.iter().map(|p| self.report_project(p, 0)).collect::<Vec<String>>().join("\n");
+    fn report_single_area(&mut self, area: &AreaTree, resolution: &Resolution) -> String {
+        let project_reports = area.projects
+            .iter()
+            .map(|p| self.report_project(p, 0, resolution))
+            .collect::<Vec<String>>()
+            .join("\n");
         let untracked_tasks = area.hanging_tasks.iter().map(|t| self.report_task(t, 0)).collect::<Vec<String>>().join("\n");
-        let separator = if project_tasks == "" || untracked_tasks == "" {
+        let separator = if project_reports == "" || untracked_tasks == "" {
             ""
         } else {
             "\n\n"
         };
-        format!("{}{}{}", project_tasks, separator, untracked_tasks)
+        match resolution {
+            Resolution::FullTask => format!("{}{}{}", project_reports, separator, untracked_tasks),
+            Resolution::Project => format!("{}", project_reports)
+        }
     }
-    fn report_multiple_areas(&mut self, areas: &Vec<AreaTree>) -> String {
+    fn report_multiple_areas(&mut self, areas: &Vec<AreaTree>, resolution: &Resolution) -> String {
         match areas.len() {
             0 => "".to_string(),
-            1 => self.report_single_area(&areas[0]),
+            1 => self.report_single_area(&areas[0], resolution),
             _ => {
                 areas.iter().map(|area| {
-                    let single = self.report_single_area(area);
+                    let single = self.report_single_area(area, resolution);
                     format!("*{}*\n{}", area.title, single)
                 })
                 .collect::<Vec<String>>()

@@ -5,7 +5,7 @@ use osascript;
 use serde_json;
 use chrono::{DateTime, Utc};
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Eq, PartialEq)]
 pub enum Status {
     #[serde(rename = "completed")]
     Completed,
