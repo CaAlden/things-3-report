@@ -51,8 +51,8 @@ fn main() -> Result<()> {
     let args = CliArgs::parse();
     let tasks = match args.mode {
         Modes::Morning => Task::today(),
-        Modes::Signoff => Task::logbook(),
-        Modes::Cycle => panic!("Unimplemented"),
+        Modes::Signoff => Task::logbook_today(),
+        Modes::Cycle => Task::logbook_this_cycle(),
     }?;
     let reported: Vec<Task> = tasks.into_iter().filter(|task| {
         args.tags.iter().all(|tag| task.has_tag(tag))
