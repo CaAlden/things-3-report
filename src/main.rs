@@ -2,7 +2,7 @@ mod things;
 mod reporter;
 mod emoji;
 
-use reporter::{MarkdownReporter, Reporter, Resolution};
+use reporter::{MarkdownReporter, Reporter, Resolution, ReportOptions};
 
 use things::task::{Task, Status};
 use anyhow::Result;
@@ -20,14 +20,20 @@ enum Modes {
 }
 
 impl Modes {
-    fn format_tasks(&self, tasks: Vec<Task>) -> String {
+    fn format_tasks(&self, tasks: Vec<Task>, tags: Vec<String>) -> String {
         match self {
             Modes::Morning => {
-                let task_report = MarkdownReporter.report(tasks, &Resolution::FullTask);
+                let task_report = MarkdownReporter.report(tasks, &ReportOptions {
+                    resolution: Resolution::FullTask,
+                    tags,
+                });
                 format!("{}\n\n{}", emoji::pick(3).join(" "), task_report)
             },
             Modes::Signoff => {
-                let task_report = MarkdownReporter.report(tasks, &Resolution::FullTask);
+                let task_report = MarkdownReporter.report(tasks, &ReportOptions {
+                    resolution: Resolution::FullTask,
+                    tags,
+                });
                 format!("Stopping now\n\n{}", task_report)
             },
             Modes::Cycle => {
@@ -37,7 +43,10 @@ impl Modes {
                     }
                     return false;
                 }).collect::<Vec<Task>>();
-                let task_report = MarkdownReporter.report(further_filtered, &Resolution::Project);
+                let task_report = MarkdownReporter.report(further_filtered, &ReportOptions {
+                    resolution: Resolution::Project,
+                    tags,
+                });
                 format!("*Cycle Report*\n\n{}", task_report)
             },
         }
@@ -73,7 +82,7 @@ fn main() -> Result<()> {
     let reported: Vec<Task> = tasks.into_iter().filter(|task| {
         args.tags.iter().all(|tag| task.has_tag(tag))
     }).collect();
-    let report = args.mode.format_tasks(reported);
+    let report = args.mode.format_tasks(reported, args.tags);
     println!("{report}");
 
     Ok(())

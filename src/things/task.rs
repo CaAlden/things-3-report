@@ -19,6 +19,7 @@ pub enum Status {
 pub struct Project {
     pub id: String,
     pub title: String,
+    pub notes: Option<String>,
     pub status: Status,
 }
 

@@ -1,9 +1,41 @@
 use crate::things::task::Task;
 
+/// Given a notes field and a list of possible tags for sections, return the content of triple tick
+/// blocks containing those tags
+///
+/// # Examples
+/// ```
+/// extract_tagged_notes(
+///     "\`\`\`report
+///     Something
+///     \`\`\`",
+///     vec![String::from("report")],
+/// ); // -> "Something"
+/// ```
+///
+fn extract_tagged_notes(notes: &str, tags: &Vec<String>) -> Vec<String> {
+    notes
+        .split("```")
+        .into_iter()
+        .map(|section| -> (&str, Option<&String>) {
+            (section, tags.iter().find(|t| section.starts_with(*t)))
+        })
+        .filter(|(_section, tag)| { tag.is_some() })
+        .map(|(section, tag)| {
+            let start_tag = tag.unwrap();
+            section.strip_prefix(start_tag)
+                .map(|s| s.trim())
+                .expect("Failed to strip start tag prefix").to_string()
+        })
+        .collect()
+}
+
+
 #[derive(Debug)]
 pub struct ProjectTree {
     id: String,
     title: String,
+    notes: Option<String>,
     tasks: Vec<Task>,
 }
 
@@ -39,6 +71,7 @@ impl AreaTree {
                 self.projects.push(ProjectTree {
                     id: project.id.clone(),
                     title: project.title.clone(),
+                    notes: project.notes.clone(),
                     tasks: vec![task],
                 });
             }
@@ -69,6 +102,7 @@ impl ThingsTree {
                     self.hanging_projects.push(ProjectTree {
                         id: project.id.clone(),
                         title: project.title.clone(),
+                        notes: project.notes.clone(),
                         tasks: vec![task],
                     });
                 }
@@ -93,22 +127,27 @@ pub enum Resolution {
     Project,
 }
 
+pub struct ReportOptions {
+    pub resolution: Resolution,
+    pub tags: Vec<String>,
+}
+
 pub trait Reporter {
-    fn report_task(&mut self, task: &Task, depth: usize) -> String;
-    fn report_project(&mut self, project: &ProjectTree, depth: usize, resolution: &Resolution) -> String;
-    fn report_single_area(&mut self, area: &AreaTree, resolution: &Resolution) -> String;
-    fn report_multiple_areas(&mut self, areas: &Vec<AreaTree>, resolution: &Resolution) -> String;
-    fn report(&mut self, tasks: Vec<Task>, resolution: &Resolution) -> String {
+    fn report_task(&mut self, task: &Task, depth: usize, options: &ReportOptions) -> String;
+    fn report_project(&mut self, project: &ProjectTree, depth: usize, options: &ReportOptions) -> String;
+    fn report_single_area(&mut self, area: &AreaTree, options: &ReportOptions) -> String;
+    fn report_multiple_areas(&mut self, areas: &Vec<AreaTree>, options: &ReportOptions) -> String;
+    fn report(&mut self, tasks: Vec<Task>, options: &ReportOptions) -> String {
         let tree = ThingsTree::from_tasks(tasks);
         let untracked_tasks = tree.hanging_tasks
             .iter()
-            .map(|t| self.report_task(t, 0))
+            .map(|t| self.report_task(t, 0, options))
             .collect::<Vec<String>>()
             .join("\n");
         let area_tasks: String = match tree.areas.len() {
             0 => "".to_string(),
-            1 => self.report_single_area(&tree.areas[0], resolution),
-            _ => self.report_multiple_areas(&tree.areas, resolution),
+            1 => self.report_single_area(&tree.areas[0], options),
+            _ => self.report_multiple_areas(&tree.areas, options),
         };
 
         let separator = if area_tasks == "" || untracked_tasks == "" {
@@ -124,44 +163,67 @@ pub trait Reporter {
 pub struct MarkdownReporter;
 
 impl Reporter for MarkdownReporter {
-    fn report_task(&mut self, task: &Task, depth: usize) -> String {
-        format!("{}- {}", String::from(" ").repeat(depth), task.title)
+    fn report_task(&mut self, task: &Task, depth: usize, options: &ReportOptions) -> String {
+        let relevant_notes = task.notes.clone()
+            .map(|notes| extract_tagged_notes(&notes, &options.tags))
+            .unwrap_or(vec![])
+            .iter()
+            .map(|l| format!("\n{}- {}", String::from(" ").repeat(depth + 4), l))
+            .collect::<Vec<String>>()
+            .join("");
+        format!("\n{}- {}{}", String::from(" ").repeat(depth), task.title, relevant_notes)
     }
-    fn report_project(&mut self, project: &ProjectTree, depth: usize, resolution: &Resolution) -> String {
+    fn report_project(&mut self, project: &ProjectTree, depth: usize, options: &ReportOptions) -> String {
+        let resolution = &options.resolution;
+        let relevant_notes = project.notes.clone()
+            .map(|notes| extract_tagged_notes(&notes, &options.tags))
+            .unwrap_or(vec![])
+            .iter()
+            .map(|l| format!("\n{}- {}", String::from(" ").repeat(depth + 4), l))
+            .collect::<Vec<String>>()
+            .join("");
         match resolution {
             Resolution::FullTask => {
-                let tasks = project.tasks.iter().map(|t| self.report_task(t, depth + 4)).collect::<Vec<String>>().join("\n");
-                format!("{}{}\n{}", String::from(" ").repeat(depth), project.title, tasks)
+                let tasks = project.tasks
+                    .iter()
+                    .map(|t| self.report_task(t, depth + 4, options))
+                    .collect::<Vec<String>>()
+                    .join("");
+                format!("{}{}{}{}", String::from(" ").repeat(depth), relevant_notes, project.title, tasks)
             },
             Resolution::Project => {
-                format!("{}- {}", String::from(" ").repeat(depth), project.title)
+                format!("{}- {}{}", String::from(" ").repeat(depth), project.title, relevant_notes)
             }
         }
     }
-    fn report_single_area(&mut self, area: &AreaTree, resolution: &Resolution) -> String {
+    fn report_single_area(&mut self, area: &AreaTree, options: &ReportOptions) -> String {
         let project_reports = area.projects
             .iter()
-            .map(|p| self.report_project(p, 0, resolution))
+            .map(|p| self.report_project(p, 0, options))
             .collect::<Vec<String>>()
             .join("\n");
-        let untracked_tasks = area.hanging_tasks.iter().map(|t| self.report_task(t, 0)).collect::<Vec<String>>().join("\n");
+        let untracked_tasks = area.hanging_tasks
+            .iter()
+            .map(|t| self.report_task(t, 0, options))
+            .collect::<Vec<String>>()
+            .join("");
         let separator = if project_reports == "" || untracked_tasks == "" {
             ""
         } else {
             "\n\n"
         };
-        match resolution {
+        match options.resolution {
             Resolution::FullTask => format!("{}{}{}", project_reports, separator, untracked_tasks),
             Resolution::Project => format!("{}", project_reports)
         }
     }
-    fn report_multiple_areas(&mut self, areas: &Vec<AreaTree>, resolution: &Resolution) -> String {
+    fn report_multiple_areas(&mut self, areas: &Vec<AreaTree>, options: &ReportOptions) -> String {
         match areas.len() {
             0 => "".to_string(),
-            1 => self.report_single_area(&areas[0], resolution),
+            1 => self.report_single_area(&areas[0], options),
             _ => {
                 areas.iter().map(|area| {
-                    let single = self.report_single_area(area, resolution);
+                    let single = self.report_single_area(area, options);
                     format!("*{}*\n{}", area.title, single)
                 })
                 .collect::<Vec<String>>()
