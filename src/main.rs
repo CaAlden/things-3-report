@@ -8,7 +8,6 @@ use reporter::{MarkdownReporter, Reporter, Resolution, ReportOptions};
 use things::task::{Task, Status};
 use anyhow::Result;
 use clap::{Parser, ValueEnum};
-use names::sanitize_names;
 
 #[derive(ValueEnum, Copy, Clone, Eq, PartialEq)]
 enum Modes {
@@ -22,12 +21,13 @@ enum Modes {
 }
 
 impl Modes {
-    fn format_tasks(&self, tasks: Vec<Task>, tags: &Vec<String>) -> String {
+    fn format_tasks(&self, tasks: Vec<Task>, tags: &Vec<String>, sanitize_names: bool) -> String {
         match self {
             Modes::Morning => {
                 let task_report = MarkdownReporter.report(tasks, &ReportOptions {
                     resolution: Resolution::FullTask,
                     tags: tags.to_vec(),
+                    sanitize_names,
                 });
                 format!("{}\n\n{}", emoji::pick(3).join(" "), task_report)
             },
@@ -35,6 +35,7 @@ impl Modes {
                 let task_report = MarkdownReporter.report(tasks, &ReportOptions {
                     resolution: Resolution::FullTask,
                     tags: tags.to_vec(),
+                    sanitize_names,
                 });
                 format!("Stopping now\n\n{}", task_report)
             },
@@ -48,6 +49,7 @@ impl Modes {
                 let task_report = MarkdownReporter.report(further_filtered, &ReportOptions {
                     resolution: Resolution::Project,
                     tags: tags.to_vec(),
+                    sanitize_names,
                 });
                 format!("*Cycle Report*\n\n{}", task_report)
             },
@@ -72,6 +74,12 @@ struct CliArgs {
     #[arg(short, long, default_value_t = Modes::default())]
     #[clap(value_enum)]
     mode: Modes,
+
+    /// By default, any @<name> style tags will be sanitized in the output to avoid @-mentions in
+    /// slack. This is done by replacing vowel characters with look unicode lookalikes. If this
+    /// flag is set then the names will be passed through unsanitized
+    #[arg(long, default_value_t = false)]
+    no_sanitize: bool,
 }
 
 fn main() -> Result<()> {
@@ -84,9 +92,8 @@ fn main() -> Result<()> {
     let reported: Vec<Task> = tasks.into_iter().filter(|task| {
         args.tags.iter().all(|tag| task.has_tag(tag))
     }).collect();
-    let report = args.mode.format_tasks(reported, &args.tags);
-    let sanitized = sanitize_names(&report, &args.tags);
-    println!("{sanitized}");
+    let report = args.mode.format_tasks(reported, &args.tags, !args.no_sanitize);
+    println!("{report}");
 
     Ok(())
 }

@@ -1,4 +1,5 @@
 use crate::things::task::Task;
+use crate::names::sanitize_names;
 
 /// Given a notes field and a list of possible tags for sections, return the content of triple tick
 /// blocks containing those tags
@@ -36,6 +37,7 @@ pub struct ProjectTree {
     id: String,
     title: String,
     notes: Option<String>,
+    tags: Vec<String>,
     tasks: Vec<Task>,
 }
 
@@ -72,6 +74,7 @@ impl AreaTree {
                     id: project.id.clone(),
                     title: project.title.clone(),
                     notes: project.notes.clone(),
+                    tags: project.tags.clone(),
                     tasks: vec![task],
                 });
             }
@@ -103,6 +106,7 @@ impl ThingsTree {
                         id: project.id.clone(),
                         title: project.title.clone(),
                         notes: project.notes.clone(),
+                        tags: project.tags.clone(),
                         tasks: vec![task],
                     });
                 }
@@ -130,6 +134,7 @@ pub enum Resolution {
 pub struct ReportOptions {
     pub resolution: Resolution,
     pub tags: Vec<String>,
+    pub sanitize_names: bool,
 }
 
 pub trait Reporter {
@@ -171,7 +176,11 @@ impl Reporter for MarkdownReporter {
             .map(|l| format!("\n{}- {}", String::from(" ").repeat(depth + 4), l))
             .collect::<Vec<String>>()
             .join("");
-        format!("\n{}- {}{}", String::from(" ").repeat(depth), task.title, relevant_notes)
+        let mut output = format!("\n{}- {}{}", String::from(" ").repeat(depth), task.title, relevant_notes);
+        if options.sanitize_names {
+            output = sanitize_names(&output, &task.tags);
+        }
+        return output;
     }
     fn report_project(&mut self, project: &ProjectTree, depth: usize, options: &ReportOptions) -> String {
         let resolution = &options.resolution;
@@ -182,7 +191,7 @@ impl Reporter for MarkdownReporter {
             .map(|l| format!("\n{}- {}", String::from(" ").repeat(depth + 4), l))
             .collect::<Vec<String>>()
             .join("");
-        match resolution {
+        let mut output = match resolution {
             Resolution::FullTask => {
                 let tasks = project.tasks
                     .iter()
@@ -194,7 +203,13 @@ impl Reporter for MarkdownReporter {
             Resolution::Project => {
                 format!("{}- {}{}", String::from(" ").repeat(depth), project.title, relevant_notes)
             }
+        };
+
+        if options.sanitize_names {
+            output = sanitize_names(&output, &project.tags);
         }
+
+        return output;
     }
     fn report_single_area(&mut self, area: &AreaTree, options: &ReportOptions) -> String {
         let project_reports = area.projects
