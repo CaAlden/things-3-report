@@ -1,12 +1,14 @@
 mod things;
 mod reporter;
 mod emoji;
+mod names;
 
 use reporter::{MarkdownReporter, Reporter, Resolution, ReportOptions};
 
 use things::task::{Task, Status};
 use anyhow::Result;
 use clap::{Parser, ValueEnum};
+use names::sanitize_names;
 
 #[derive(ValueEnum, Copy, Clone, Eq, PartialEq)]
 enum Modes {
@@ -20,19 +22,19 @@ enum Modes {
 }
 
 impl Modes {
-    fn format_tasks(&self, tasks: Vec<Task>, tags: Vec<String>) -> String {
+    fn format_tasks(&self, tasks: Vec<Task>, tags: &Vec<String>) -> String {
         match self {
             Modes::Morning => {
                 let task_report = MarkdownReporter.report(tasks, &ReportOptions {
                     resolution: Resolution::FullTask,
-                    tags,
+                    tags: tags.to_vec(),
                 });
                 format!("{}\n\n{}", emoji::pick(3).join(" "), task_report)
             },
             Modes::Signoff => {
                 let task_report = MarkdownReporter.report(tasks, &ReportOptions {
                     resolution: Resolution::FullTask,
-                    tags,
+                    tags: tags.to_vec(),
                 });
                 format!("Stopping now\n\n{}", task_report)
             },
@@ -45,7 +47,7 @@ impl Modes {
                 }).collect::<Vec<Task>>();
                 let task_report = MarkdownReporter.report(further_filtered, &ReportOptions {
                     resolution: Resolution::Project,
-                    tags,
+                    tags: tags.to_vec(),
                 });
                 format!("*Cycle Report*\n\n{}", task_report)
             },
@@ -82,8 +84,9 @@ fn main() -> Result<()> {
     let reported: Vec<Task> = tasks.into_iter().filter(|task| {
         args.tags.iter().all(|tag| task.has_tag(tag))
     }).collect();
-    let report = args.mode.format_tasks(reported, args.tags);
-    println!("{report}");
+    let report = args.mode.format_tasks(reported, &args.tags);
+    let sanitized = sanitize_names(&report, &args.tags);
+    println!("{sanitized}");
 
     Ok(())
 }
