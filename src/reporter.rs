@@ -59,8 +59,8 @@ pub struct ThingsTree {
 impl AreaTree {
     fn new(id: &str, title: &str) -> AreaTree {
         AreaTree {
-            id: id.clone().to_string(),
-            title: title.clone().to_string(),
+            id: id.to_string(),
+            title: title.to_string(),
             projects: vec![],
             hanging_tasks: vec![],
         }
