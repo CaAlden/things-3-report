@@ -89,9 +89,12 @@ fn main() -> Result<()> {
         ReportTypes::Signoff => Task::logbook_today(),
         ReportTypes::Cycle => Task::logbook_this_cycle(),
     }?;
-    let reported: Vec<Task> = tasks.into_iter().filter(|task| {
+    let mut reported: Vec<Task> = tasks.into_iter().filter(|task| {
         args.tags.iter().all(|tag| task.has_tag(tag))
     }).collect();
+    reported.sort_by(|a, b| {
+        a.completion_date.cmp(&b.completion_date)
+    });
     let report = args.report.format_tasks(reported, &args.tags, !args.no_sanitize);
     println!("{report}");
 
