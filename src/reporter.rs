@@ -180,7 +180,7 @@ impl Reporter for MarkdownReporter {
         if options.sanitize_names {
             output = sanitize_names(&output, &task.tags);
         }
-        return output;
+        output
     }
     fn report_project(&mut self, project: &ProjectTree, depth: usize, options: &ReportOptions) -> String {
         let resolution = &options.resolution;
@@ -198,7 +198,7 @@ impl Reporter for MarkdownReporter {
                     .map(|t| self.report_task(t, depth + 4, options))
                     .collect::<Vec<String>>()
                     .join("");
-                format!("{}{}{}{}", String::from(" ").repeat(depth), relevant_notes, project.title, tasks)
+                format!("{}{}{}{}", String::from(" ").repeat(depth), project.title, relevant_notes, tasks)
             },
             Resolution::Project => {
                 format!("{}- {}{}", String::from(" ").repeat(depth), project.title, relevant_notes)
@@ -209,7 +209,7 @@ impl Reporter for MarkdownReporter {
             output = sanitize_names(&output, &project.tags);
         }
 
-        return output;
+        output
     }
     fn report_single_area(&mut self, area: &AreaTree, options: &ReportOptions) -> String {
         let project_reports = area.projects
