@@ -1,4 +1,4 @@
-use crate::things::task::Task;
+use crate::things::task::{Task, Status};
 use crate::names::sanitize_names;
 
 /// Given a notes field and a list of possible tags for sections, return the content of triple tick
@@ -176,10 +176,16 @@ impl Reporter for MarkdownReporter {
             .map(|l| format!("\n{}- {}", String::from(" ").repeat(depth + 4), l))
             .collect::<Vec<String>>()
             .join("");
-        let mut output = format!("\n{}- {}{}", String::from(" ").repeat(depth), task.title, relevant_notes);
+        let title = if task.status == Status::Canceled {
+            format!("~{}~", task.title)
+        } else {
+            task.title.to_string()
+        };
+        let mut output = format!("\n{}- {}{}", String::from(" ").repeat(depth), title, relevant_notes);
         if options.sanitize_names {
             output = sanitize_names(&output, &task.tags);
         }
+
         output
     }
     fn report_project(&mut self, project: &ProjectTree, depth: usize, options: &ReportOptions) -> String {

@@ -13,6 +13,8 @@ pub enum Status {
     Incomplete,
     #[serde(rename = "open")]
     Open,
+    #[serde(rename = "canceled")]
+    Canceled,
 }
 
 #[derive(Deserialize, Debug)]
