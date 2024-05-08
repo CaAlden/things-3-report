@@ -70,6 +70,11 @@ struct CliArgs {
     #[arg(short, long)]
     tags: Vec<String>,
 
+    /// A list of tags to specifically omit from the results. Only todo list items WITHOUT these
+    /// tags will be included
+    #[arg(short, long)]
+    omit: Vec<String>,
+
     /// Select the type of report to generate
     #[arg(short, long, default_value_t = ReportTypes::default())]
     #[clap(value_enum)]
@@ -90,7 +95,8 @@ fn main() -> Result<()> {
         ReportTypes::Cycle => Task::logbook_this_cycle(),
     }?;
     let mut reported: Vec<Task> = tasks.into_iter().filter(|task| {
-        args.tags.iter().all(|tag| task.has_tag(tag))
+        // Filter down to tasks with all selected tags and without any of the omitted tags
+        args.tags.iter().all(|tag| task.has_tag(tag)) && !args.omit.iter().any(|tag| task.has_tag(tag))
     }).collect();
     reported.sort_by(|a, b| {
         a.completion_date.cmp(&b.completion_date)
