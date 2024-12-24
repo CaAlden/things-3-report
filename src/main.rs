@@ -5,32 +5,31 @@ mod names;
 
 use reporter::{MarkdownReporter, Reporter, Resolution, ReportOptions};
 
-use things::task::{Task, Status};
+use things::task::Task;
 use anyhow::Result;
 use clap::{Parser, ValueEnum};
 
 #[derive(ValueEnum, Copy, Clone, Eq, PartialEq)]
-enum ReportTypes {
-    /// report projected work for the day and a morning message
-    Morning,
-    /// report what major tasks were completed in the last cycle.
-    Cycle,
-    /// report what was actually done today and a signoff message
-    Signoff,
+enum ListType {
+    /// Generate a report from the Things today list
+    Today,
+    /// Generate a report from the Things logbook
+    Logbook,
 }
 
-impl ReportTypes {
+impl ListType {
     fn format_tasks(&self, tasks: Vec<Task>, tags: &Vec<String>, sanitize_names: bool) -> String {
         match self {
-            ReportTypes::Morning => {
+            ListType::Today => {
                 let task_report = MarkdownReporter.report(tasks, &ReportOptions {
                     resolution: Resolution::FullTask,
                     tags: tags.to_vec(),
                     sanitize_names,
                 });
+                // TODO: Use a cli flag to determine if the emoji should be included.
                 format!("{}\n\n{}", emoji::pick(3).join(" "), task_report)
             },
-            ReportTypes::Signoff => {
+            ListType::Logbook => {
                 let task_report = MarkdownReporter.report(tasks, &ReportOptions {
                     resolution: Resolution::FullTask,
                     tags: tags.to_vec(),
@@ -38,27 +37,13 @@ impl ReportTypes {
                 });
                 format!("Stopping now\n\n{}", task_report)
             },
-            ReportTypes::Cycle => {
-                let further_filtered = tasks.into_iter().filter(|t| {
-                    if let Some(p) = &t.project {
-                        return p.status == Status::Completed;
-                    }
-                    return false;
-                }).collect::<Vec<Task>>();
-                let task_report = MarkdownReporter.report(further_filtered, &ReportOptions {
-                    resolution: Resolution::Project,
-                    tags: tags.to_vec(),
-                    sanitize_names,
-                });
-                format!("*Cycle Report*\n\n{}", task_report)
-            },
         }
     }
 }
 
-impl Default for ReportTypes {
-    fn default() -> ReportTypes {
-        ReportTypes::Morning
+impl Default for ListType {
+    fn default() -> ListType {
+        ListType::Today
     }
 }
 
@@ -76,9 +61,9 @@ struct CliArgs {
     omit: Vec<String>,
 
     /// Select the type of report to generate
-    #[arg(short, long, default_value_t = ReportTypes::default())]
+    #[arg(short, long, default_value_t = ListType::default())]
     #[clap(value_enum)]
-    report: ReportTypes,
+    report: ListType,
 
     /// By default, any @<name> style tags will be sanitized in the output to avoid @-mentions in
     /// Slack. This is done by replacing vowel characters with unicode lookalikes. If this
@@ -90,9 +75,8 @@ struct CliArgs {
 fn main() -> Result<()> {
     let args = CliArgs::parse();
     let tasks = match args.report {
-        ReportTypes::Morning => Task::today(),
-        ReportTypes::Signoff => Task::logbook_today(),
-        ReportTypes::Cycle => Task::logbook_this_cycle(),
+        ListType::Today => Task::today(),
+        ListType::Logbook => Task::logbook(),
     }?;
     let mut reported: Vec<Task> = tasks.into_iter().filter(|task| {
         // Filter down to tasks with all selected tags and without any of the omitted tags

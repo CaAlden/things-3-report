@@ -59,12 +59,8 @@ impl Task {
     }
 
     /// Get all tasks in the logbook list from Things
-    pub fn logbook_today() -> Result<Vec<Task>> {
+    pub fn logbook() -> Result<Vec<Task>> {
         Task::from_script(include_bytes!("logbook.js"))
-    }
-
-    pub fn logbook_this_cycle() -> Result<Vec<Task>> {
-        Task::from_script(include_bytes!("logbook_cycle.js"))
     }
 
     pub fn has_tag(&self, tag: &str) -> bool {
