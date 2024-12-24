@@ -1,3 +1,5 @@
+use clap::ValueEnum;
+
 use crate::things::task::{Task, Status};
 use crate::names::sanitize_names;
 
@@ -126,9 +128,16 @@ impl ThingsTree {
     }
 }
 
+#[derive(ValueEnum, Copy, Clone, Eq, PartialEq)]
 pub enum Resolution {
     FullTask,
     Project,
+}
+
+impl Default for Resolution {
+    fn default() -> Resolution {
+        Resolution::FullTask
+    }
 }
 
 pub struct ReportOptions {

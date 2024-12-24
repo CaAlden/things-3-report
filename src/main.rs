@@ -18,24 +18,21 @@ enum ListType {
 }
 
 impl ListType {
-    fn format_tasks(&self, tasks: Vec<Task>, tags: &Vec<String>, sanitize_names: bool) -> String {
+    fn format_tasks(&self, tasks: Vec<Task>, tags: &Vec<String>, sanitize_names: bool, resolution: Resolution) -> String {
         match self {
             ListType::Today => {
-                let task_report = MarkdownReporter.report(tasks, &ReportOptions {
-                    resolution: Resolution::FullTask,
+                MarkdownReporter.report(tasks, &ReportOptions {
+                    resolution,
                     tags: tags.to_vec(),
                     sanitize_names,
-                });
-                // TODO: Use a cli flag to determine if the emoji should be included.
-                format!("{}\n\n{}", emoji::pick(3).join(" "), task_report)
+                })
             },
             ListType::Logbook => {
-                let task_report = MarkdownReporter.report(tasks, &ReportOptions {
-                    resolution: Resolution::FullTask,
+                MarkdownReporter.report(tasks, &ReportOptions {
+                    resolution,
                     tags: tags.to_vec(),
                     sanitize_names,
-                });
-                format!("Stopping now\n\n{}", task_report)
+                })
             },
         }
     }
@@ -63,20 +60,47 @@ struct CliArgs {
     /// Select the type of report to generate
     #[arg(short, long, default_value_t = ListType::default())]
     #[clap(value_enum)]
-    report: ListType,
+    list: ListType,
 
     /// By default, any @<name> style tags will be sanitized in the output to avoid @-mentions in
     /// Slack. This is done by replacing vowel characters with unicode lookalikes. If this
     /// flag is set then the names will be passed through unsanitized.
     #[arg(long, default_value_t = false)]
     no_sanitize: bool,
+
+    /// An ISO date string for when to filter tasks from.
+    /// Defaults to midnight this morning if unset. Not used for the today list
+    #[arg(long)]
+    from: Option<String>,
+
+    /// An ISO date string for when to filter tasks until.
+    /// Defaults to 1 second before midnight tonight if unset. Not used for the today list
+    #[arg(long)]
+    to: Option<String>,
+
+    /// An optional message to include at the beginning of the report. If omitted, 3 random emojis
+    /// will be included instead
+    #[arg(short, long)]
+    message: Option<String>,
+
+    /// Choose a resolution for the report. This will determine how much detail is included in the
+    /// output. Default is "FullTask"
+    #[arg(short, long, default_value_t = Resolution::default())]
+    #[clap(value_enum)]
+    resolution: Resolution,
 }
 
 fn main() -> Result<()> {
     let args = CliArgs::parse();
-    let tasks = match args.report {
-        ListType::Today => Task::today(),
-        ListType::Logbook => Task::logbook(),
+    let now = chrono::Local::now();
+    let from = args.from.unwrap_or_else(|| now.date().and_hms(0, 0, 0).to_rfc3339());
+    let to = args.to.unwrap_or_else(|| (now + chrono::Duration::days(1)).date().and_hms(0, 0, 0).to_rfc3339());
+
+    let message = args.message.unwrap_or_else(|| emoji::pick(3).join(" "));
+
+    let tasks = match args.list {
+        ListType::Today => Task::today(&from, &to),
+        ListType::Logbook => Task::logbook(&from, &to),
     }?;
     let mut reported: Vec<Task> = tasks.into_iter().filter(|task| {
         // Filter down to tasks with all selected tags and without any of the omitted tags
@@ -85,8 +109,8 @@ fn main() -> Result<()> {
     reported.sort_by(|a, b| {
         a.completion_date.cmp(&b.completion_date)
     });
-    let report = args.report.format_tasks(reported, &args.tags, !args.no_sanitize);
-    println!("{report}");
+    let report = args.list.format_tasks(reported, &args.tags, !args.no_sanitize, args.resolution);
+    println!("{message}\n\n{report}");
 
     Ok(())
 }

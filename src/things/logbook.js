@@ -2,15 +2,8 @@ var things = Application("Things");
 var logbook = things.lists.byName("Logbook").toDos();
 var objs = [];
 
-var from = new Date();
-from.setHours(0);
-from.setMinutes(0);
-from.setSeconds(0);
-var to = new Date();
-to.setTime(from.getTime());
-to.setHours(23);
-to.setMinutes(59);
-to.setSeconds(59);
+var from = new Date($params.from);
+var to = new Date($params.to);
 
 for (const todo of logbook) {
   if(todo.completionDate() >= from && todo.completionDate() < to) {
